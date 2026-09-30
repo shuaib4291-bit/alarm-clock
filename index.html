@@ -18,15 +18,16 @@ button{padding:12px;border:0;border-radius:8px;background:#22c55e;color:#fff;fon
 <div id="list"></div>
 <script>
 const LN=window.Capacitor&&Capacitor.Plugins.LocalNotifications;
+const CH='alarm2';
 let A=JSON.parse(localStorage.getItem('al')||'[]');
 async function init(){
  if(!LN)return;
  await LN.requestPermissions();
- await LN.createChannel({id:'alarm',name:'Alarm',importance:5,vibration:true,visibility:1});
+ await LN.createChannel({id:CH,name:'Alarm',importance:5,vibration:true,visibility:1,sound:'alarm.wav'});
 }
 async function sched(a){
  if(!LN)return;
- await LN.schedule({notifications:[{id:a.id,title:'⏰ এলার্ম',body:a.l||'সময় হয়েছে',channelId:'alarm',schedule:{on:{hour:a.h,minute:a.m},allowWhileIdle:true}}]});
+ await LN.schedule({notifications:[{id:a.id,title:'⏰ এলার্ম',body:a.l||'সময় হয়েছে',channelId:CH,sound:'alarm.wav',schedule:{on:{hour:a.h,minute:a.m},allowWhileIdle:true}}]});
 }
 async function cancel(id){if(LN)await LN.cancel({notifications:[{id}]});}
 function save(){localStorage.setItem('al',JSON.stringify(A));show();}
