@@ -20,9 +20,12 @@ jobs:
           cp index.html www/
           npx cap init Alarm com.shuaib.alarm --web-dir www
           npx cap add android
-      - name: Add permissions
+      - name: Add permissions and sound
         run: |
           sed -i 's|<application|<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/><uses-permission android:name="android.permission.USE_EXACT_ALARM"/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"/><uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/><application|' android/app/src/main/AndroidManifest.xml
+          sudo apt-get install -y ffmpeg
+          mkdir -p android/app/src/main/res/raw
+          ffmpeg -f lavfi -i "sine=frequency=880:beep_factor=4:duration=30" -ac 1 -ar 22050 android/app/src/main/res/raw/alarm.wav
           npx cap sync android
       - name: Build
         run: cd android && chmod +x gradlew && ./gradlew assembleDebug
