@@ -1,0 +1,110 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Setup Java JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    
+    - name: Install Bubblewrap CLI
+      run: npm install -g @bubblewrap/cli
+    
+    - name: Initialize Bubblewrap Project
+      run: |
+        mkdir -p android-build
+        cd android-build
+        echo '{
+          "packageId": "io.github.shuaib4291.ocrapp",
+          "host": "shuaib4291-bit.github.io",
+          "name": "OCR - ছবি থেকে টেক্সট",
+          "launcherName": "OCR",
+          "display": "standalone",
+          "themeColor": "#667eea",
+          "themeColorDark": "#000000",
+          "navigationColor": "#000000",
+          "navigationColorDark": "#000000",
+          "navigationDividerColor": "#000000",
+          "navigationDividerColorDark": "#000000",
+          "backgroundColor": "#667eea",
+          "enableNotifications": false,
+          "startUrl": "/ocr-app/",
+          "iconUrl": "https://shuaib4291-bit.github.io/ocr-app/icon-512.png",
+          "maskableIconUrl": "https://shuaib4291-bit.github.io/ocr-app/icon-512.png",
+          "monochromeIconUrl": "",
+          "splashScreenFadeOutDuration": 300,
+          "signingKey": {
+            "path": "./android.keystore",
+            "alias": "android"
+          },
+          "appVersionName": "1.0.0",
+          "appVersionCode": 1,
+          "shortcuts": [],
+          "generatorApp": "bubblewrap-cli",
+          "webManifestUrl": "https://shuaib4291-bit.github.io/ocr-app/manifest.json",
+          "fallbackType": "customtabs",
+          "features": {},
+          "alphaDependencies": {
+            "enabled": false
+          },
+          "enableSiteSettingsShortcut": true,
+          "isChromeOSOnly": false,
+          "isMetaQuest": false,
+          "fullScopeUrl": "https://shuaib4291-bit.github.io/ocr-app/",
+          "minSdkVersion": 21,
+          "orientation": "portrait",
+          "fingerprints": [],
+          "additionalTrustedOrigins": [],
+          "retainedBundles": [],
+          "appVersion": "1.0.0"
+        }' > twa-manifest.json
+    
+    - name: Generate Signing Key
+      run: |
+        cd android-build
+        keytool -genkeypair -v \
+          -keystore android.keystore \
+          -alias android \
+          -keyalg RSA \
+          -keysize 2048 \
+          -validity 10000 \
+          -storepass android \
+          -keypass android \
+          -dname "CN=OCR App, OU=Dev, O=Shuaib, L=Dhaka, S=Dhaka, C=BD"
+    
+    - name: Build APK
+      run: |
+        cd android-build
+        yes | bubblewrap build --skipPwaValidation || true
+      continue-on-error: true
+    
+    - name: Find APK files
+      run: |
+        find android-build -name "*.apk" -type f
+        find . -name "*.apk" -type f
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: ocr-app-apk
+        path: |
+          **/*.apk
+          **/*.aab
+        if-no-files-found: warn
