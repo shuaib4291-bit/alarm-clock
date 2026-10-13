@@ -10,161 +10,51 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    # ===== ১. কোড চেকআউট =====
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    # ===== ২. Node.js সেটআপ =====
-    - name: Setup Node.js
+    - name: Setup Node.js 22
       uses: actions/setup-node@v4
       with:
         node-version: '22'
     
-    # ===== ৩. Java সেটআপ =====
     - name: Setup Java JDK 17
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
     
-    # ===== ৪. Android SDK সেটআপ =====
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Install PWABuilder CLI
+      run: npm install -g @pwabuilder/cli
     
-    # ===== ৫. Bubblewrap ইনস্টল =====
-    - name: Install Bubblewrap CLI
-      run: |
-        npm install -g @bubblewrap/cli
-        bubblewrap --version
+    - name: Create output folder
+      run: mkdir -p output
     
-    # ===== ৬. Bubblewrap কনফিগার =====
-    - name: Configure Bubblewrap
+    - name: Build APK with PWABuilder
       run: |
-        mkdir -p ~/.bubblewrap
-        cat > ~/.bubblewrap/config.json << EOF
-        {
-          "jdkPath": "$JAVA_HOME",
-          "androidSdkPath": "$ANDROID_HOME"
-        }
-        EOF
-        cat ~/.bubblewrap/config.json
-    
-    # ===== ৭. TWA Manifest ডাউনলোড =====
-    - name: Download TWA Manifest
-      run: |
-        curl -L -o manifest.json https://shuaib4291-bit.github.io/ocr-app/manifest.json
-        echo "=== Manifest Content ==="
-        cat manifest.json
-        echo ""
-        echo "=== Validate JSON ==="
-        python3 -m json.tool manifest.json > /dev/null && echo "JSON Valid!" || echo "JSON Invalid!"
-    
-    # ===== ৮. Keystore তৈরি =====
-    - name: Generate Keystore
-      run: |
-        keytool -genkeypair -v \
-          -keystore android.keystore \
-          -alias android \
-          -keyalg RSA \
-          -keysize 2048 \
-          -validity 10000 \
-          -storepass android123 \
-          -keypass android123 \
-          -dname "CN=OCR App, OU=Dev, O=Shuaib, L=Dhaka, ST=Dhaka, C=BD"
-        ls -la android.keystore
-    
-    # ===== ৯. TWA Manifest ফাইল তৈরি =====
-    - name: Create TWA Manifest File
-      run: |
-        cat > twa-manifest.json << 'EOF'
-        {
-          "packageId": "io.github.shuaib4291.ocrapp",
-          "host": "shuaib4291-bit.github.io",
-          "name": "OCR - ছবি থেকে টেক্সট",
-          "launcherName": "OCR",
-          "display": "standalone",
-          "themeColor": "#667eea",
-          "themeColorDark": "#000000",
-          "navigationColor": "#000000",
-          "navigationColorDark": "#000000",
-          "navigationDividerColor": "#000000",
-          "navigationDividerColorDark": "#000000",
-          "backgroundColor": "#667eea",
-          "enableNotifications": false,
-          "startUrl": "/ocr-app/",
-          "iconUrl": "https://shuaib4291-bit.github.io/ocr-app/icon-512.png",
-          "maskableIconUrl": "https://shuaib4291-bit.github.io/ocr-app/icon-512.png",
-          "splashScreenFadeOutDuration": 300,
-          "signingKey": {
-            "path": "./android.keystore",
-            "alias": "android"
-          },
-          "appVersionName": "1.0.0",
-          "appVersionCode": 1,
-          "shortcuts": [],
-          "generatorApp": "bubblewrap-cli",
-          "webManifestUrl": "https://shuaib4291-bit.github.io/ocr-app/manifest.json",
-          "fallbackType": "customtabs",
-          "features": {},
-          "alphaDependencies": {
-            "enabled": false
-          },
-          "enableSiteSettingsShortcut": true,
-          "isChromeOSOnly": false,
-          "isMetaQuest": false,
-          "fullScopeUrl": "https://shuaib4291-bit.github.io/ocr-app/",
-          "minSdkVersion": 21,
-          "orientation": "portrait",
-          "fingerprints": [],
-          "additionalTrustedOrigins": [],
-          "retainedBundles": [],
-          "appVersion": "1.0.0",
-          "webManifestUrl": "https://shuaib4291-bit.github.io/ocr-app/manifest.json"
-        }
-        EOF
-        echo "TWA Manifest created!"
-        cat twa-manifest.json
-    
-    # ===== ১০. APK Build =====
-    - name: Build APK with Bubblewrap
-      run: |
-        echo "android123" | bubblewrap build \
-          --manifest twa-manifest.json \
-          --directory ./android-build 2>&1 | tee build-log.txt || true
+        pwabuilder https://shuaib4291-bit.github.io/ocr-app/ android --output ./output 2>&1 | tee output.log || true
         echo "=== Build completed ==="
-        echo "=== Looking for APK files ==="
-        find . -name "*.apk" -o -name "*.aab" 2>/dev/null || echo "No APK found"
+        ls -la output/
+      continue-on-error: true
     
-    # ===== ১১. Build লগ দেখানো =====
-    - name: Show Build Log
-      if: always()
+    - name: Search for APK files
       run: |
-        echo "=== Build Log (last 100 lines) ==="
-        tail -100 build-log.txt 2>/dev/null || echo "No build log found"
-    
-    # ===== ১২. APK ফাইল খুঁজে বের করা =====
-    - name: Find APK Files
-      if: always()
-      run: |
-        echo "=== Searching for APK files ==="
-        find / -name "*.apk" 2>/dev/null | head -20
+        echo "=== Searching for APK/AAB ==="
+        find . -name "*.apk" -o -name "*.aab" -o -name "*.zip" 2>/dev/null
         echo ""
-        echo "=== Searching in workspace ==="
-        find . -name "*.apk" 2>/dev/null
-        echo ""
-        echo "=== Directory structure ==="
-        ls -la
-        ls -la android-build/ 2>/dev/null || echo "No android-build folder"
+        echo "=== Output folder ==="
+        ls -la output/
     
-    # ===== ১৩. Artifact আপলোড =====
     - name: Upload APK Artifact
-      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: ocr-app-apk
         path: |
+          output/**/*.apk
+          output/**/*.aab
+          output/**/*.zip
           **/*.apk
           **/*.aab
-          build-log.txt
+          output.log
         if-no-files-found: warn
         retention-days: 30
