@@ -16,7 +16,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
     
     - name: Setup Java JDK 17
       uses: actions/setup-java@v4
@@ -24,87 +24,38 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
     
-    - name: Install Bubblewrap CLI
-      run: npm install -g @bubblewrap/cli
+    - name: Install PWABuilder CLI
+      run: npm install -g @pwabuilder/cli
     
-    - name: Initialize Bubblewrap Project
-      run: |
-        mkdir -p android-build
-        cd android-build
-        echo '{
-          "packageId": "io.github.shuaib4291.ocrapp",
-          "host": "shuaib4291-bit.github.io",
-          "name": "OCR - ছবি থেকে টেক্সট",
-          "launcherName": "OCR",
-          "display": "standalone",
-          "themeColor": "#667eea",
-          "themeColorDark": "#000000",
-          "navigationColor": "#000000",
-          "navigationColorDark": "#000000",
-          "navigationDividerColor": "#000000",
-          "navigationDividerColorDark": "#000000",
-          "backgroundColor": "#667eea",
-          "enableNotifications": false,
-          "startUrl": "/ocr-app/",
-          "iconUrl": "https://shuaib4291-bit.github.io/ocr-app/icon-512.png",
-          "maskableIconUrl": "https://shuaib4291-bit.github.io/ocr-app/icon-512.png",
-          "monochromeIconUrl": "",
-          "splashScreenFadeOutDuration": 300,
-          "signingKey": {
-            "path": "./android.keystore",
-            "alias": "android"
-          },
-          "appVersionName": "1.0.0",
-          "appVersionCode": 1,
-          "shortcuts": [],
-          "generatorApp": "bubblewrap-cli",
-          "webManifestUrl": "https://shuaib4291-bit.github.io/ocr-app/manifest.json",
-          "fallbackType": "customtabs",
-          "features": {},
-          "alphaDependencies": {
-            "enabled": false
-          },
-          "enableSiteSettingsShortcut": true,
-          "isChromeOSOnly": false,
-          "isMetaQuest": false,
-          "fullScopeUrl": "https://shuaib4291-bit.github.io/ocr-app/",
-          "minSdkVersion": 21,
-          "orientation": "portrait",
-          "fingerprints": [],
-          "additionalTrustedOrigins": [],
-          "retainedBundles": [],
-          "appVersion": "1.0.0"
-        }' > twa-manifest.json
+    - name: Create output folder
+      run: mkdir -p output
     
-    - name: Generate Signing Key
+    - name: Build APK with PWABuilder
       run: |
-        cd android-build
-        keytool -genkeypair -v \
-          -keystore android.keystore \
-          -alias android \
-          -keyalg RSA \
-          -keysize 2048 \
-          -validity 10000 \
-          -storepass android \
-          -keypass android \
-          -dname "CN=OCR App, OU=Dev, O=Shuaib, L=Dhaka, S=Dhaka, C=BD"
-    
-    - name: Build APK
-      run: |
-        cd android-build
-        yes | bubblewrap build --skipPwaValidation || true
+        pwabuilder https://shuaib4291-bit.github.io/ocr-app/ android \
+          --output ./output \
+          --package-id io.github.shuaib4291.ocrapp \
+          --app-name "OCR" \
+          --app-version 1.0.0 \
+          --launcher-name "OCR" || echo "PWABuilder failed, trying alternative..."
       continue-on-error: true
     
-    - name: Find APK files
+    - name: List generated files
       run: |
-        find android-build -name "*.apk" -type f
-        find . -name "*.apk" -type f
+        echo "=== Checking output folder ==="
+        ls -la output/ || echo "Output folder empty"
+        echo "=== Searching for APK/AAB files ==="
+        find . -name "*.apk" -o -name "*.aab" -o -name "*.zip" | head -20
     
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: ocr-app-apk
         path: |
+          output/*.apk
+          output/*.aab
+          output/*.zip
           **/*.apk
           **/*.aab
         if-no-files-found: warn
+        retention-days: 30
