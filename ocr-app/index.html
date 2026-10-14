@@ -5,51 +5,101 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OCR - ছবি থেকে টেক্সট</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 </head>
 <body>
+
 <div class="container">
-<h1>🔍 ছবি থেকে টেক্সট</h1>
-<p class="subtitle">OCR প্রযুক্তি দিয়ে টেক্সট বের করুন</p>
+    <h1>🔍 ছবি থেকে টেক্সট</h1>
+    <p class="subtitle">OCR প্রযুক্তি দিয়ে টেক্সট বের করুন</p>
 
-<div class="lib-status" id="libStatus">⏳ লোড হচ্ছে...</div>
+    <div class="lib-status" id="libStatus">⏳ লোড হচ্ছে...</div>
 
-<div class="controls">
-<label class="file-input-wrapper">
-<input type="file" id="imageInput" accept="image/*">
-<span class="btn btn-upload">📁 ছবি আপলোড</span>
-</label>
-<select class="language-select" id="languageSelect">
-<option value="ben+eng">বাংলা + ইংরেজি</option>
-<option value="ben">বাংলা</option>
-<option value="eng">ইংরেজি</option>
-</select>
-<button class="btn btn-extract" id="extractBtn" disabled>✨ টেক্সট আলাদা করুন</button>
-<button class="btn btn-copy" id="copyBtn" disabled>📋 কপি</button>
-<button class="btn btn-clear" id="clearBtn" disabled>🗑️ ক্লিয়ার</button>
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="ocr">📷 OCR</button>
+        <button class="tab-btn" data-tab="history">📚 হিস্ট্রি</button>
+    </div>
+
+    <!-- OCR Tab -->
+    <div class="tab-content active" id="ocrTab">
+        
+        <div class="controls">
+            <label class="file-input-wrapper">
+                <input type="file" id="imageInput" accept="image/*">
+                <span class="btn btn-upload">📁 ছবি আপলোড</span>
+            </label>
+
+            <select class="language-select" id="languageSelect">
+                <option value="ben+eng+urd+ara">সব ভাষা (বাংলা+ইং+উর্দু+আরবি)</option>
+                <option value="urd+ara">উর্দু + আরবি</option>
+                <option value="urd">উর্দু</option>
+                <option value="ara">আরবি</option>
+                <option value="ben+eng">বাংলা + ইংরেজি</option>
+                <option value="ben">বাংলা</option>
+                <option value="eng">ইংরেজি</option>
+                <option value="hin">হিন্দি</option>
+                <option value="fas">ফারসি</option>
+            </select>
+
+            <button class="btn btn-crop" id="cropBtn" disabled>✂️ ছবি কাটুন</button>
+            <button class="btn btn-extract" id="extractBtn" disabled>✨ টেক্সট আলাদা করুন</button>
+            <button class="btn btn-copy" id="copyBtn" disabled>📋 কপি</button>
+            <button class="btn btn-save" id="saveBtn" disabled>💾 সেভ</button>
+            <button class="btn btn-clear" id="clearBtn" disabled>🗑️ ক্লিয়ার</button>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-title">🖼️ ছবি প্রিভিউ</div>
+                <div class="image-preview">
+                    <p class="placeholder" id="placeholder">এখানে ছবি দেখাবে</p>
+                    <img id="previewImg" alt="Preview">
+                    <canvas id="cropCanvas" style="display:none;max-width:100%;"></canvas>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">📝 প্রাপ্ত টেক্সট</div>
+                <textarea class="text-output" id="textOutput" placeholder="ছবি থেকে পাওয়া টেক্সট এখানে আসবে..." dir="auto"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-content" id="historyTab">
+        <div class="history-header">
+            <h2>📚 OCR হিস্ট্রি</h2>
+            <button class="btn btn-clear-history" id="clearHistoryBtn">🗑️ সব মুছুন</button>
+        </div>
+        <div class="history-list" id="historyList">
+            <p class="empty-history">এখনো কোনো হিস্ট্রি নেই</p>
+        </div>
+    </div>
 </div>
 
-<div class="progress-container" id="progressContainer">
-<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-<div class="progress-text" id="progressText"></div>
+<!-- Crop Modal -->
+<div class="crop-modal" id="cropModal">
+    <div class="crop-modal-content">
+        <h3>✂️ ছবি কাটুন</h3>
+        <div class="crop-container">
+            <img id="cropImage" alt="Crop">
+        </div>
+        <div class="crop-actions">
+            <button class="btn btn-cancel" id="cancelCropBtn">বাতিল</button>
+            <button class="btn btn-confirm" id="confirmCropBtn">✅ কাটুন</button>
+        </div>
+    </div>
 </div>
 
-<div class="status" id="status"></div>
-
-<div class="main-content">
-<div class="panel">
-<div class="panel-title">🖼️ ছবি প্রিভিউ</div>
-<div class="image-preview">
-<p class="placeholder" id="placeholder">এখানে ছবি দেখাবে</p>
-<img id="previewImg" alt="Preview">
-</div>
-</div>
-<div class="panel">
-<div class="panel-title">📝 প্রাপ্ত টেক্সট</div>
-<textarea class="text-output" id="textOutput" placeholder="ছবি থেকে পাওয়া টেক্সট এখানে আসবে..."></textarea>
-</div>
-</div>
-</div>
 <script src="script.js"></script>
 </body>
 </html>
