@@ -1,53 +1,21 @@
-// === Service Worker রেজিস্ট্রেশন (উন্নত সংস্করণ) ===
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('sw.js', { scope: './' })
-            .then(function(registration) {
-                console.log('✅ Service Worker সফলভাবে রেজিস্টার:', registration.scope);
-                
-                // আপডেট চেক
-                registration.addEventListener('updatefound', function() {
-                    const newWorker = registration.installing;
-                    newWorker.addEventListener('statechange', function() {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            console.log('🔄 নতুন সংস্করণ পাওয়া গেছে!');
-                        }
-                    });
-                });
-            })
-            .catch(function(error) {
-                console.error('❌ Service Worker ত্রুটি:', error);
-            });
-    });
-}
-
-// PWA ইনস্টল প্রম্পট
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', function(e) {
-    console.log('📱 PWA ইনস্টল প্রম্পট দেখা যাচ্ছে!');
-    e.preventDefault();
-    deferredPrompt = e;
-    
-    // ইনস্টল বাটন দেখান
-    const installBtn = document.getElementById('installBtn');
-    if (installBtn) {
-        installBtn.style.display = 'block';
-        installBtn.addEventListener('click', function() {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choice) {
-                if (choice.outcome === 'accepted') {
-                    console.log('✅ ইনস্টল গৃহীত');
-                } else {
-                    console.log('❌ ইনস্টল বাতিল');
-                }
-                deferredPrompt = null;
-                installBtn.style.display = 'none';
-            });
-        });
-    }
-});
-
-// ইনস্টল সম্পন্ন হলে
-window.addEventListener('appinstalled', function() {
-    console.log('🎉 অ্যাপ ইনস্টল হয়েছে!');
-});
+const imageInput=document.getElementById('imageInput');
+const previewImg=document.getElementById('previewImg');
+const placeholder=document.getElementById('placeholder');
+const extractBtn=document.getElementById('extractBtn');
+const copyBtn=document.getElementById('copyBtn');
+const clearBtn=document.getElementById('clearBtn');
+const textOutput=document.getElementById('textOutput');
+const languageSelect=document.getElementById('languageSelect');
+const progressContainer=document.getElementById('progressContainer');
+const progressFill=document.getElementById('progressFill');
+const progressText=document.getElementById('progressText');
+const status=document.getElementById('status');
+const libStatus=document.getElementById('libStatus');
+let currentImageFile=null, isProcessing=false;
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(e=>console.log(e))})}
+window.addEventListener('load',()=>{let a=0;const iv=setInterval(()=>{a++;if(typeof Tesseract!=='undefined'){clearInterval(iv);libStatus.textContent='✅ OCR ইঞ্জিন প্রস্তুত';libStatus.className='lib-status ready'}else if(a>30){clearInterval(iv);libStatus.textContent='❌ লোড হয়নি! ইন্টারনেট চালু করুন';libStatus.className='lib-status error'}},500)});
+function showStatus(m,t){status.textContent=m;status.className='status visible '+t;setTimeout(()=>status.classList.remove('visible'),4000)}
+imageInput.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){showStatus('❌ শুধু ছবি দিন!','error');return}currentImageFile=f;const r=new FileReader();r.onload=ev=>{previewImg.src=ev.target.result;previewImg.classList.add('visible');placeholder.style.display='none';extractBtn.disabled=false;clearBtn.disabled=false;textOutput.value='';copyBtn.disabled=true;showStatus('✅ ছবি আপলোড হয়েছে!','success')};r.readAsDataURL(f)});
+extractBtn.addEventListener('click',async()=>{if(!currentImageFile||isProcessing)return;if(typeof Tesseract==='undefined'){showStatus('❌ OCR লোড হয়নি!','error');return}isProcessing=true;extractBtn.disabled=true;extractBtn.textContent='⏳ প্রসেস হচ্ছে...';progressContainer.classList.add('visible');progressFill.style.width='0%';textOutput.value='';try{const r=await Tesseract.recognize(currentImageFile,languageSelect.value,{logger:m=>{const p=Math.round((m.progress||0)*100);progressFill.style.width=p+'%';progressText.textContent=m.status==='recognizing text'?'টেক্সট পড়া হচ্ছে... '+p+'%':'প্রস্তুত হচ্ছে... '+p+'%'}});const t=r.data.text.trim();if(t){textOutput.value=t;copyBtn.disabled=false;showStatus('✅ টেক্সট পাওয়া গেছে!','success')}else{textOutput.value='⚠️ কোনো টেক্সট পাওয়া যায়নি';showStatus('⚠️ টেক্সট পাওয়া যায়নি','error')}setTimeout(()=>progressContainer.classList.remove('visible'),1500)}catch(e){showStatus('❌ ত্রুটি: '+e.message,'error');progressContainer.classList.remove('visible')}finally{isProcessing=false;extractBtn.disabled=false;extractBtn.textContent='✨ টেক্সট আলাদা করুন'}});
+copyBtn.addEventListener('click',async()=>{const t=textOutput.value.trim();if(!t)return;try{await navigator.clipboard.writeText(t)}catch(e){textOutput.select();document.execCommand('copy')}showStatus('📋 কপি হয়েছে!','success')});
+clearBtn.addEventListener('click',()=>{imageInput.value='';currentImageFile=null;previewImg.src='';previewImg.classList.remove('visible');placeholder.style.display='block';textOutput.value='';extractBtn.disabled=true;copyBtn.disabled=true;clearBtn.disabled=true;progressContainer.classList.remove('visible');showStatus('🗑️ ক্লিয়ার হয়েছে!','info')});
